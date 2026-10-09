@@ -5,7 +5,7 @@
 // Windows 11 24H2 moved both into Progman as children; earlier builds keep them as
 // top-level windows. Both layouts are handled.
 
-namespace Deskworlds;
+namespace Livingpanes;
 
 sealed record DesktopHost(IntPtr Parent, IntPtr Below, string Layout);
 

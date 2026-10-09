@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Deskworlds scene recipe",
+  "description": "A living desktop wallpaper scene. Every field is optional; the engine fills in defaults and clamps every number.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "name": { "type": "string", "maxLength": 60, "description": "Short title, e.g. 'Moonlit lagoon'." },
+    "description": { "type": "string", "maxLength": 280 },
+    "mode": { "enum": ["recipe", "code"], "description": "'code' runs scene.js from the scene folder instead of the built-in engine." },
+    "medium": { "enum": ["water", "air"], "description": "Water: creatures swim, food sinks, ripples refract. Air: creatures fly, food falls, no refraction." },
+    "backdrop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["image", "gradient"] },
+        "image": { "type": "string", "maxLength": 80, "description": "File name of the image in the scene folder." },
+        "depth": { "type": "string", "maxLength": 80, "description": "File name of the depth map (white = near). Enables 3D parallax." },
+        "colors": {
+          "type": "array", "minItems": 2, "maxItems": 5,
+          "items": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "description": "Gradient colors from top to bottom (gradient backdrops only)."
+        },
+        "focus": {
+          "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": "Point of the image kept in view when a screen crops it, [x, y] from the top left."
+        },
+        "parallax": { "type": "number", "minimum": 0, "maximum": 1, "description": "How far the backdrop shifts with the cursor." }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ripples": { "type": "number", "minimum": 0, "maximum": 1, "description": "Water ripples from the cursor and taps." },
+        "caustics": { "type": "number", "minimum": 0, "maximum": 1, "description": "Dancing underwater light." },
+        "rays": { "type": "number", "minimum": 0, "maximum": 1, "description": "Light shafts from above." },
+        "fog": { "type": "number", "minimum": 0, "maximum": 1 },
+        "vignette": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tint": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Color graded over the whole scene, lightly." },
+        "sway": { "type": "number", "minimum": 0, "maximum": 1, "description": "Gentle wavy motion of the backdrop, like water or heat." }
+      }
+    },
+    "particles": {
+      "type": "array", "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["bubbles", "dust", "snow", "rain", "fireflies", "embers", "petals", "stars", "plankton"] },
+          "amount": { "type": "number", "minimum": 0, "maximum": 1 },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "speed": { "type": "number", "minimum": 0, "maximum": 2 },
+          "night": { "type": "boolean", "description": "Only shows (or glows brighter) at night." }
+        }
+      }
+    },
+    "creatures": {
+      "type": "array", "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["fish", "angelfish", "jellyfish", "firefly", "bird", "butterfly", "koi"] },
+          "count": { "type": "integer", "minimum": 0, "maximum": 60 },
+          "colors": {
+            "type": "array", "minItems": 1, "maxItems": 4,
+            "items": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+          },
+          "size": { "type": "number", "minimum": 0.2, "maximum": 3 },
+          "speed": { "type": "number", "minimum": 0.1, "maximum": 3 },
+          "schooling": { "type": "number", "minimum": 0, "maximum": 1, "description": "0: each alone, 1: tight school." },
+          "zone": {
+            "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0, "maximum": 1 },
+            "description": "Vertical band they keep to, [top, bottom] as fractions of the screen height."
+          },
+          "glow": { "type": "boolean", "description": "Bioluminescent: glows, brighter at night." }
+        }
+      }
+    },
+    "food": { "enum": ["flakes", "pellets", "seeds", "nectar", "none"] },
+    "light": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "followClock": { "type": "boolean", "description": "Lighting follows the local time of day." },
+        "mood": { "enum": ["day", "dusk", "night", "dawn"], "description": "Fixed lighting when not following the clock." }
+      }
+    }
+  }
+}

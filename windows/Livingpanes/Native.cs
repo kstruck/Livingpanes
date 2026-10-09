@@ -4,7 +4,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Deskworlds;
+namespace Livingpanes;
 
 [StructLayout(LayoutKind.Sequential)]
 struct RECT {
@@ -77,6 +77,13 @@ static class Native {
   public static extern bool SystemParametersInfoBool(uint action, uint size, out int value, uint flags);
   [DllImport("kernel32.dll")]
   public static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS status);
+
+  public const int WM_HOTKEY = 0x0312;
+  public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
+  [DllImport("user32.dll")]
+  public static extern bool RegisterHotKey(IntPtr window, int id, uint modifiers, uint key);
+  [DllImport("user32.dll")]
+  public static extern bool UnregisterHotKey(IntPtr window, int id);
 
   public static string ClassOf(IntPtr window) {
     var name = new StringBuilder(256);

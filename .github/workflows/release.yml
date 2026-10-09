@@ -1,0 +1,47 @@
+name: Release
+
+# Push a tag like v1.0.0 to build a ready-to-run Windows download and attach it to a
+# GitHub release. The .exe is self-contained, so people do not need .NET installed.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Test
+        run: dotnet test windows/Livingpanes.sln -c Release
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $out = "dist/Livingpanes"
+          dotnet publish windows/Livingpanes/Livingpanes.csproj -c Release -r win-x64 --self-contained true `
+            -p:Version=$version -o $out --nologo
+          New-Item -ItemType Directory -Force "$out/scene/scenes" | Out-Null
+          Get-ChildItem scenes -Directory | Copy-Item -Destination "$out/scene/scenes" -Recurse
+          foreach ($folder in 'vendor', 'ui', 'studio') { Copy-Item $folder "$out/scene" -Recurse }
+          Get-ChildItem "$out/scene" -Directory -Recurse -Filter tests | Remove-Item -Recurse -Force
+          Copy-Item windows/install.ps1, windows/uninstall.ps1, LICENSE, CREDITS.md "$out/"
+          Compress-Archive -Path "$out/*" -DestinationPath "dist/Livingpanes-$version-win-x64.zip"
+          (Get-FileHash "dist/Livingpanes-$version-win-x64.zip" -Algorithm SHA256).Hash.ToLower() |
+            Set-Content "dist/Livingpanes-$version-win-x64.zip.sha256"
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          gh release create '${{ github.ref_name }}' "dist/Livingpanes-$version-win-x64.zip" `
+            "dist/Livingpanes-$version-win-x64.zip.sha256" --generate-notes --title "Livingpanes $version"

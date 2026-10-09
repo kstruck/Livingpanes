@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Window and cursor coordinates in physical pixels on every monitor. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>Livingpanes</AssemblyName>
+    <RootNamespace>Livingpanes</RootNamespace>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <Version>1.0.0</Version>
+    <Product>Livingpanes</Product>
+    <Company>Livingpanes contributors</Company>
+    <Description>Living desktop wallpapers for Windows, built on Deskworlds by Chase Lean.</Description>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- WebView2 ships WPF bindings this WinForms app never loads. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.50.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Livingpanes.Tests" />
+  </ItemGroup>
+
+</Project>

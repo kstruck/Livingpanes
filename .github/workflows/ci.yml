@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scenes:
+    name: Scenes, Studio and engine (Node)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Syntax check
+        run: npm run check
+      - name: Tests
+        run: npm test
+      - name: Recipe schema is valid JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('scenes/studio/recipe.schema.json','utf8'))"
+
+  windows:
+    name: Windows app (.NET)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Build and test
+        run: dotnet test windows/Livingpanes.sln -c Release
+      - name: Vulnerable packages
+        shell: pwsh
+        run: |
+          $out = dotnet list windows/Livingpanes.sln package --vulnerable --include-transitive 2>&1
+          $out
+          if ($out -match 'has the following vulnerable packages') { exit 1 }
+      - name: Install script parses in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          foreach ($f in 'windows/install.ps1', 'windows/uninstall.ps1') {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors)
+            if ($errors) { $errors; exit 1 }
+          }

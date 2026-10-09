@@ -103,6 +103,12 @@ async function start() {
     if (at) pond.feed(at.x, at.z, between(PELLET.click));
   });
   feed = () => { if (running()) pond.pinch(); };
+  // Livingpanes: the Windows host's Ctrl+Alt+F drops pellets where the cursor is.
+  window.sceneFeedAt = (x, y) => {
+    if (!running()) return;
+    const at = point(x, y);
+    if (at) pond.feed(at.x, at.z, between(PELLET.click));
+  };
   updateControls = installControls({
     stage, isPaused: () => paused, isRunning: running,
     pause: window.scenePause, feed, quality: () => quality,

@@ -1,0 +1,11 @@
+name: Share a scene or an idea
+description: A scene you made, or a world, creature or effect you would love to see.
+labels: [scene]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Tell us about it
+      description: Attach your .livingpane file (zip it first if GitHub refuses it) or a screenshot.
+    validations:
+      required: true

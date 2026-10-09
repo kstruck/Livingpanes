@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Win32;
 
-namespace Deskworlds;
+namespace Livingpanes;
 
 sealed class Controller : ApplicationContext {
   readonly string root;
@@ -29,11 +29,13 @@ sealed class Controller : ApplicationContext {
 
   public Controller(string root) {
     this.root = root;
-    world = World.Named(settings.World);
+    world = World.Named(settings.World, root);
+    Store.SweepDrafts();
     // Reduce Motion's Windows twin is "Animation effects". It decides how the wallpaper
     // starts and nothing more: somebody who installed it may want it anyway.
     stopped = settings.Paused ?? !AnimationsOn();
     signals = new Signals(this);
+    signals.SetHotkeys(settings.Hotkeys);
     BuildTray();
 
     pointerTimer.Tick += (_, _) => TrackPointer();
@@ -76,7 +78,7 @@ sealed class Controller : ApplicationContext {
       Build();
     } catch (WebView2RuntimeNotFoundException) {
       Log.Write("the WebView2 runtime is missing");
-      MessageBox.Show("Deskworlds needs the Microsoft Edge WebView2 Runtime.", "Deskworlds");
+      MessageBox.Show("Livingpanes needs the Microsoft Edge WebView2 Runtime.", "Livingpanes");
       ExitThread();
     }
   }
@@ -94,7 +96,12 @@ sealed class Controller : ApplicationContext {
       return;
     }
     Log.Write($"desktop layout {host.Layout}, {layout.Length} screen(s): {string.Join(", ", layout)}");
-    foreach (var bounds in layout) screens.Add(new Wallpaper(bounds, host, world, environment, root));
+    foreach (var bounds in layout) {
+      var screen = new Wallpaper(bounds, host, world, environment, root);
+      screen.SetPets(PetsFor(bounds));
+      screen.SetClock(settings.FollowClock);
+      screens.Add(screen);
+    }
     ApplyRate();
   }
 
@@ -180,29 +187,46 @@ sealed class Controller : ApplicationContext {
 
   // The tray icon
 
+  readonly ToolStripMenuItem tap = new("Tap the glass") { ShortcutKeyDisplayString = "Ctrl+Alt+T" };
+  readonly ToolStripMenuItem petsMenu = new("Pets");
+  readonly ToolStripMenuItem clock = new("Light follows the clock");
+  readonly ToolStripMenuItem hotkeys = new("Hotkeys (Ctrl+Alt+F feed, Ctrl+Alt+T tap)");
+  StudioForm? studio;
+
   void BuildTray() {
-    foreach (var choice in World.All) {
-      var item = new ToolStripMenuItem(choice.Title) { Tag = choice };
-      item.Click += (_, _) => SelectWorld(choice);
-      worldMenu.DropDownItems.Add(item);
-    }
-    feed.Click += (_, _) => { foreach (var screen in screens) screen.Feed(); };
+    // Filled each time the menu opens, so new Studio scenes appear without a restart.
+    worldMenu.DropDownItems.Add(new ToolStripMenuItem("…"));
+    feed.ShortcutKeyDisplayString = "Ctrl+Alt+F";
+    feed.Click += (_, _) => Feed(null);
+    tap.Click += (_, _) => Tap(null);
     pause.Click += (_, _) => {
       stopped = !stopped;
       settings.Paused = stopped;
       settings.Save();
       ApplyRate();
     };
+    clock.Click += (_, _) => {
+      settings.FollowClock = !settings.FollowClock;
+      settings.Save();
+      foreach (var screen in screens) screen.SetClock(settings.FollowClock);
+    };
+    hotkeys.Click += (_, _) => {
+      settings.Hotkeys = !settings.Hotkeys;
+      settings.Save();
+      signals.SetHotkeys(settings.Hotkeys);
+    };
+    var openStudio = new ToolStripMenuItem("Studio… (make your own scene)");
+    openStudio.Click += (_, _) => OpenStudio();
     var quit = new ToolStripMenuItem("Quit");
     quit.Click += (_, _) => ExitThread();
 
     var menu = new ContextMenuStrip();
-    menu.Items.AddRange([state, new ToolStripSeparator(), worldMenu, new ToolStripSeparator(), feed, pause,
-      new ToolStripSeparator(), quit]);
+    menu.Items.AddRange([state, new ToolStripSeparator(), worldMenu, openStudio, new ToolStripSeparator(),
+      feed, tap, petsMenu, pause, new ToolStripSeparator(), clock, hotkeys, new ToolStripSeparator(), quit]);
     menu.Opening += (_, _) => UpdateMenu();
     tray.ContextMenuStrip = menu;
     tray.Icon = TrayIcon.Draw();
-    tray.Text = $"Deskworlds · {world.Title}";
+    tray.Text = $"Livingpanes · {world.Title}";
     tray.Visible = true;
     // A left click opens the same menu, as the menu bar item does on macOS.
     tray.MouseUp += (_, e) => {
@@ -215,7 +239,11 @@ sealed class Controller : ApplicationContext {
   /// Says what the wallpaper is doing, and why. Unexplained stillness reads as a fault.
   void UpdateMenu() {
     var (_, saver) = Power();
-    foreach (ToolStripMenuItem item in worldMenu.DropDownItems) item.Checked = (World?)item.Tag == world;
+    BuildWorldMenu();
+    BuildPetsMenu();
+    clock.Checked = settings.FollowClock;
+    hotkeys.Checked = settings.Hotkeys;
+    tap.Enabled = applied > 0;
     state.Text =
       saver ? "Still, for Energy Saver"
       : stopped ? (settings.Paused is null ? "Paused, for Animation effects off" : "Paused")
@@ -228,13 +256,135 @@ sealed class Controller : ApplicationContext {
     feed.Enabled = applied > 0 && world.CanFeed;
   }
 
-  void SelectWorld(World chosen) {
-    if (chosen == world) return;
+  void BuildWorldMenu() {
+    worldMenu.DropDownItems.Clear();
+    var all = World.All(root);
+    void Add(string? heading, IEnumerable<World> group) {
+      var list = group.ToList();
+      if (list.Count == 0) return;
+      if (worldMenu.DropDownItems.Count > 0) worldMenu.DropDownItems.Add(new ToolStripSeparator());
+      if (heading is not null) worldMenu.DropDownItems.Add(new ToolStripMenuItem(heading) { Enabled = false });
+      foreach (var choice in list) {
+        var item = new ToolStripMenuItem(choice.Title) { Checked = choice.Name == world.Name };
+        item.Click += (_, _) => SelectWorld(choice.Name);
+        worldMenu.DropDownItems.Add(item);
+      }
+    }
+    Add("By Chase Lean (Deskworlds)", all.Where(w => !w.Studio));
+    Add("Studio examples", all.Where(w => w.Name.StartsWith("example:")));
+    Add("My scenes", all.Where(w => w.Name.StartsWith("scene:")));
+  }
+
+  public void SelectWorld(string name) {
+    var chosen = World.Named(name, root);
+    if (chosen.Name == world.Name) return;
     world = chosen;
     settings.World = chosen.Name;
     settings.Save();
-    tray.Text = $"Deskworlds · {chosen.Title}";
+    tray.Text = ResourceServer.Truncate($"Livingpanes · {chosen.Title}", 60);
     Build();
+  }
+
+  /// A saved scene was added, changed or removed in the Studio.
+  public void ScenesChanged() {
+    if (world.Studio && World.All(root).All(w => w.Name != world.Name)) SelectWorld(World.Handcrafted[0].Name);
+    else if (world.Studio) Build();
+  }
+
+  public string Model {
+    get => Claude.Models.Contains(settings.Model) ? settings.Model : Claude.DefaultModel;
+    set {
+      if (!Claude.Models.Contains(value)) throw new ArgumentException("Unknown model.");
+      settings.Model = value;
+      settings.Save();
+    }
+  }
+
+  void OpenStudio() {
+    if (environment is null) return;
+    if (studio is { IsDisposed: false }) {
+      if (studio.WindowState == FormWindowState.Minimized) studio.WindowState = FormWindowState.Normal;
+      studio.Activate();
+      return;
+    }
+    studio = new StudioForm(this, environment, root);
+    studio.Show();
+  }
+
+  // Feeding, tapping and pets. A point is the cursor (hotkeys); null is the tray menu.
+
+  Wallpaper? ScreenAt(Point point) => screens.FirstOrDefault(s => s.Bounds.Contains(point));
+
+  internal void Feed(Point? at) {
+    if (applied == 0 || !world.CanFeed) return;
+    if (at is { } p && ScreenAt(p) is { } screen) screen.FeedAt(new Point(p.X - screen.Bounds.Left, p.Y - screen.Bounds.Top));
+    else foreach (var each in screens) each.Feed();
+    FeedPets();
+  }
+
+  internal void Tap(Point? at) {
+    if (applied == 0) return;
+    var point = at ?? Cursor.Position;
+    if (ScreenAt(point) is { } screen) screen.Tap(new Point(point.X - screen.Bounds.Left, point.Y - screen.Bounds.Top));
+  }
+
+  /// A meal counts toward growing at most every ten minutes, so a fed pet grows over days,
+  /// not in one burst of clicking. Any feeding cheers a sulking pet up at once.
+  void FeedPets() {
+    if (settings.Pets.Count == 0) return;
+    var now = DateTime.UtcNow;
+    foreach (var pet in settings.Pets) {
+      if (now - pet.LastFed > TimeSpan.FromMinutes(10)) pet.Meals = Math.Min(pet.Meals + 1, 9999);
+      pet.LastFed = now;
+    }
+    settings.Save();
+    foreach (var screen in screens) screen.SetPets(PetsFor(screen.Bounds));
+  }
+
+  const int MaxPets = 6;
+
+  /// Pets live on the main screen only, so each one exists once.
+  IReadOnlyList<Pet> PetsFor(Rectangle bounds) =>
+    bounds == (Screen.PrimaryScreen?.Bounds ?? bounds) ? settings.Pets : [];
+
+  void BuildPetsMenu() {
+    petsMenu.DropDownItems.Clear();
+    var adopt = new ToolStripMenuItem("Adopt a pet…") { Enabled = settings.Pets.Count < MaxPets };
+    adopt.Click += (_, _) => {
+      if (PetDialog.Ask("Adopt a pet", "", PetDialog.Palette[settings.Pets.Count % PetDialog.Palette.Length]) is not { } answer) return;
+      settings.Pets.Add(new Pet { Name = answer.Name, Color = answer.Color });
+      PetsChanged();
+    };
+    petsMenu.DropDownItems.Add(adopt);
+    if (settings.Pets.Count > 0) petsMenu.DropDownItems.Add(new ToolStripSeparator());
+    foreach (var pet in settings.Pets) {
+      var hungry = DateTime.UtcNow - pet.LastFed > TimeSpan.FromHours(24);
+      var item = new ToolStripMenuItem($"{pet.Name}{(hungry ? "  (sulking: feed me!)" : "")}");
+      var rename = new ToolStripMenuItem("Rename or recolor…");
+      rename.Click += (_, _) => {
+        if (PetDialog.Ask($"Change {pet.Name}", pet.Name, pet.Color) is not { } answer) return;
+        pet.Name = answer.Name;
+        pet.Color = answer.Color;
+        PetsChanged();
+      };
+      var release = new ToolStripMenuItem("Let go…");
+      release.Click += (_, _) => {
+        if (MessageBox.Show($"Let {pet.Name} go? It will swim away for good.", "Livingpanes",
+              MessageBoxButtons.OKCancel) != DialogResult.OK) return;
+        settings.Pets.Remove(pet);
+        PetsChanged();
+      };
+      item.DropDownItems.AddRange([
+        new ToolStripMenuItem($"{pet.Meals} meals, adopted {pet.Born.ToLocalTime():d}") { Enabled = false },
+        rename, release,
+      ]);
+      petsMenu.DropDownItems.Add(item);
+    }
+  }
+
+  void PetsChanged() {
+    settings.Save();
+    foreach (var screen in screens) screen.SetPets(PetsFor(screen.Bounds));
   }
 
   // Requests from a second copy of the app, and from Explorer.
@@ -254,7 +404,7 @@ sealed class Controller : ApplicationContext {
     foreach (var screen in screens) screen.SetRate(60);
     await Task.Delay(4000);
     try {
-      await first.SnapshotAsync(Path.Combine(Path.GetTempPath(), "deskworlds.png"));
+      await first.SnapshotAsync(Path.Combine(Path.GetTempPath(), "livingpanes.png"));
     } catch (Exception error) {
       Log.Write($"snapshot failed: {error.Message}");
     }
@@ -262,6 +412,7 @@ sealed class Controller : ApplicationContext {
   }
 
   protected override void ExitThreadCore() {
+    if (studio is { IsDisposed: false }) studio.Close();
     watchTimer.Stop();
     pointerTimer.Stop();
     tray.Visible = false;
@@ -279,8 +430,8 @@ sealed class Controller : ApplicationContext {
 /// the display's power state arrives as a window message. Also listens for the named
 /// events a second copy of the app sets for --snapshot and --quit.
 sealed class Signals : NativeWindow, IDisposable {
-  public const string SnapshotEvent = @"Local\Deskworlds.Snapshot";
-  public const string QuitEvent = @"Local\Deskworlds.Quit";
+  public const string SnapshotEvent = @"Local\Livingpanes.Snapshot";
+  public const string QuitEvent = @"Local\Livingpanes.Quit";
 
   readonly Controller controller;
   readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
@@ -291,7 +442,7 @@ sealed class Signals : NativeWindow, IDisposable {
 
   public Signals(Controller controller) {
     this.controller = controller;
-    CreateHandle(new CreateParams { Caption = "Deskworlds signals" });
+    CreateHandle(new CreateParams { Caption = "Livingpanes signals" });
     var display = Native.GUID_CONSOLE_DISPLAY_STATE;
     Native.RegisterPowerSettingNotification(Handle, ref display, 0);
     snapshotWait = ThreadPool.RegisterWaitForSingleObject(snapshot,
@@ -300,8 +451,29 @@ sealed class Signals : NativeWindow, IDisposable {
       (_, _) => ui.Post(_ => controller.ExitThread(), null), null, -1, false);
   }
 
+  const int HotkeyFeed = 1, HotkeyTap = 2;
+  bool hotkeysOn;
+
+  /// Ctrl+Alt+F feeds at the cursor, Ctrl+Alt+T taps the glass there. If another app
+  /// already owns a combination, Windows refuses it and the log says so.
+  public void SetHotkeys(bool on) {
+    if (hotkeysOn) {
+      Native.UnregisterHotKey(Handle, HotkeyFeed);
+      Native.UnregisterHotKey(Handle, HotkeyTap);
+    }
+    hotkeysOn = on;
+    if (!on) return;
+    const uint modifiers = Native.MOD_CONTROL | Native.MOD_ALT | Native.MOD_NOREPEAT;
+    if (!Native.RegisterHotKey(Handle, HotkeyFeed, modifiers, (uint)Keys.F)) Log.Write("Ctrl+Alt+F is taken by another app");
+    if (!Native.RegisterHotKey(Handle, HotkeyTap, modifiers, (uint)Keys.T)) Log.Write("Ctrl+Alt+T is taken by another app");
+  }
+
   protected override void WndProc(ref Message m) {
-    if (m.Msg == (int)taskbarCreated) {
+    if (m.Msg == Native.WM_HOTKEY) {
+      var at = Cursor.Position;
+      if ((int)m.WParam == HotkeyFeed) controller.Feed(at);
+      if ((int)m.WParam == HotkeyTap) controller.Tap(at);
+    } else if (m.Msg == (int)taskbarCreated) {
       controller.OnTaskbarCreated();
     } else if (m.Msg == Native.WM_POWERBROADCAST && (int)m.WParam == Native.PBT_POWERSETTINGCHANGE) {
       // POWERBROADCAST_SETTING: a GUID, a length, then the data. 0 off, 1 on, 2 dimmed.
@@ -312,6 +484,7 @@ sealed class Signals : NativeWindow, IDisposable {
   }
 
   public void Dispose() {
+    SetHotkeys(false);
     snapshotWait.Unregister(null);
     quitWait.Unregister(null);
     snapshot.Dispose();

@@ -1,24 +1,27 @@
 // A living world as a Windows desktop wallpaper. The Windows twin of wallpaper/Wallpaper.swift.
 //
-//   Deskworlds.exe              run (one copy at a time)
-//   Deskworlds.exe --snapshot   ask the running copy to save its first screen to %TEMP%\deskworlds.png
-//   Deskworlds.exe --quit       ask the running copy to quit
+//   Livingpanes.exe              run (one copy at a time)
+//   Livingpanes.exe --snapshot   ask the running copy to save its first screen to %TEMP%\livingpanes.png
+//   Livingpanes.exe --quit       ask the running copy to quit
 
-namespace Deskworlds;
+namespace Livingpanes;
 
 static class Program {
+  /// The folder the pages are served from, once found.
+  public static string? Root { get; private set; }
+
   [STAThread]
   static int Main(string[] args) {
     if (args.Contains("--snapshot")) return Signal(Signals.SnapshotEvent);
     if (args.Contains("--quit")) return Signal(Signals.QuitEvent);
 
-    using var single = new Mutex(true, @"Local\Deskworlds", out var first);
+    using var single = new Mutex(true, @"Local\Livingpanes", out var first);
     if (!first) return 0;
 
-    var root = FindScenes();
+    var root = Root = FindScenes();
     if (root is null) {
       Log.Write("no scenes folder next to the app or above it");
-      MessageBox.Show("Deskworlds could not find its scenes folder.", "Deskworlds");
+      MessageBox.Show("Livingpanes could not find its scenes folder.", "Livingpanes");
       return 1;
     }
     Log.Write($"start, scenes from {root}");

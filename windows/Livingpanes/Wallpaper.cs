@@ -7,7 +7,7 @@ using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace Deskworlds;
+namespace Livingpanes;
 
 sealed class WallpaperForm : Form {
   public WallpaperForm(Rectangle bounds, Color background) {
@@ -16,7 +16,7 @@ sealed class WallpaperForm : Form {
     StartPosition = FormStartPosition.Manual;
     Bounds = bounds;
     BackColor = background;
-    Text = "Deskworlds";
+    Text = "Livingpanes";
   }
 
   protected override CreateParams CreateParams {
@@ -37,6 +37,8 @@ sealed class Wallpaper : IDisposable {
   // agent provides, so the scenes run unchanged.
   const string Bridge = """
     (() => {
+      // Frames inside a page (the Studio's sandboxed preview) get no bridge to the host.
+      if (window !== window.top || !window.chrome?.webview) return;
       const post = (kind, text) => window.chrome.webview.postMessage({ kind, text: String(text) });
       window.webkit = { messageHandlers: {
         ready: { postMessage: () => post('ready', '') },
@@ -64,8 +66,14 @@ sealed class Wallpaper : IDisposable {
         const canvas = document.querySelector('#scene');
         if (canvas) canvas.dispatchEvent(new PointerEvent('pointerleave'));
       };
+      // Ripples, pets and day/night for worlds that do not draw them themselves.
+      addEventListener('DOMContentLoaded', () => {
+        import('/scenes/shared/extras.js').catch((error) => post('report', `extras: ${error}`));
+      });
     })();
     """;
+
+  static readonly JsonSerializerOptions camel = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
   public readonly Rectangle Bounds;
   readonly WallpaperForm form;
@@ -99,7 +107,10 @@ sealed class Wallpaper : IDisposable {
       core.Settings.IsStatusBarEnabled = false;
       core.Settings.AreBrowserAcceleratorKeysEnabled = false;
       // Served from a private host name so module imports resolve as from a web server.
+      // ResourceServer answers every request itself (with a no-network policy); the
+      // folder mapping only makes the host name resolvable.
       core.SetVirtualHostNameToFolderMapping(Host, root, CoreWebView2HostResourceAccessKind.Deny);
+      ResourceServer.Install(core, environment, root);
       core.WebMessageReceived += OnMessage;
       core.NavigationCompleted += (_, e) => {
         if (!e.IsSuccess) Log.Write($"the scene did not load: {e.WebErrorStatus}");
@@ -107,7 +118,7 @@ sealed class Wallpaper : IDisposable {
       core.ProcessFailed += (_, e) => Log.Write($"web process failed: {e.ProcessFailedKind}");
       await core.AddScriptToExecuteOnDocumentCreatedAsync(Bridge);
       // Native: full display resolution plugged in, the Balanced profile on battery.
-      core.Navigate($"https://{Host}{world.Page}?quality=native");
+      core.Navigate($"https://{Host}{world.Page}{(world.Page.Contains('?') ? '&' : '?')}quality=native");
     } catch (Exception error) {
       Log.Write($"WebView2 did not start: {error}");
     }
@@ -117,13 +128,16 @@ sealed class Wallpaper : IDisposable {
     try {
       using var message = JsonDocument.Parse(e.WebMessageAsJson);
       var kind = message.RootElement.GetProperty("kind").GetString();
+      // A wallpaper page can say only these two things; anything else is ignored, so a
+      // scene whose code Claude wrote has no way to ask the host for anything.
       if (kind == "ready") {
         // The scene has installed its callbacks; a rate sent earlier would be lost.
         loaded = true;
         Log.Write($"scene ready on {Bounds}");
         Send();
+        SendExtras();
       } else if (kind == "report") {
-        Log.Write($"page: {message.RootElement.GetProperty("text").GetString()}");
+        Log.Write($"page: {ResourceServer.Truncate(message.RootElement.GetProperty("text").GetString(), 2000)}");
       }
     } catch (Exception error) {
       Log.Write($"unreadable page message: {error.Message}");
@@ -165,6 +179,40 @@ sealed class Wallpaper : IDisposable {
   public void Feed() {
     if (rate > 0) Run("typeof sceneFeed === 'function' && sceneFeed()");
   }
+
+  static string Css(Point p) => string.Create(CultureInfo.InvariantCulture,
+    $"{p.X} / (window.devicePixelRatio || 1), {p.Y} / (window.devicePixelRatio || 1)");
+
+  /// Food where the cursor is (the hotkey), in this screen's physical pixels.
+  public void FeedAt(Point p) {
+    if (rate == 0) return;
+    Run($"typeof sceneFeedAt === 'function' ? sceneFeedAt({Css(p)}) : typeof sceneFeed === 'function' && sceneFeed()");
+  }
+
+  /// "Tap the glass": a ripple from the cursor, and everything nearby scatters.
+  public void Tap(Point p) {
+    if (rate == 0) return;
+    Run($"typeof sceneTap === 'function' && sceneTap({Css(p)})");
+  }
+
+  string pets = "[]";
+  bool followClock = true;
+
+  public void SetPets(IReadOnlyList<Pet> list) {
+    pets = JsonSerializer.Serialize(list, camel);
+    SendExtras();
+  }
+
+  public void SetClock(bool follow) {
+    followClock = follow;
+    SendExtras();
+  }
+
+  /// Kept on window as well, so overlay code that loads after this call still finds it.
+  void SendExtras() => Run(
+    $"window.__livingpanes = {{ pets: {pets}, followClock: {(followClock ? "true" : "false")} }};" +
+    "typeof scenePets === 'function' && scenePets(window.__livingpanes.pets);" +
+    "typeof sceneClock === 'function' && sceneClock(window.__livingpanes.followClock);");
 
   /// A cursor position in this screen's physical pixels, or null when it left the screen.
   public void SetPointer(Point? point) {

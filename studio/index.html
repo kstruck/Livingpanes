@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#09110f" />
+    <title>Livingpanes Studio</title>
+    <link rel="icon" href="../ui/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="studio.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <h1 class="brand"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M24 5 43 15.5 24 26 5 15.5Z" fill="currentColor" stroke-width="3.5"/><path d="M24 5 43 15.5V31.5L24 42 5 31.5V15.5ZM24 26V42" stroke-width="3.5"/><path d="M5 21C6.55 22.2 8.17 23.52 9.75 24.12C11.33 24.72 12.93 24.64 14.5 25.16C16.07 25.68 17.65 26.96 19.25 28.38C20.85 29.8 22.38 30.9 24 31.5C25.62 30.83 27.15 29.57 28.75 28.2C30.35 26.83 31.9 25.75 33.5 25.37C35.1 24.99 36.65 25.02 38.25 24.3C39.85 23.58 41.38 22.1 43 21" stroke-width="2.1"/></svg>Livingpanes <span class="brand-sub">Studio</span></h1>
+      <span class="mock-badge" id="mock-badge" hidden title="Opened outside the Windows app: changes live in memory only">Preview mode</span>
+      <nav class="topnav" aria-label="Studio">
+        <button type="button" class="ghost" id="nav-library">Library</button>
+        <button type="button" class="ghost" id="nav-settings" aria-haspopup="dialog">Settings</button>
+      </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <!-- Library -->
+      <section id="library-view" class="library" aria-labelledby="library-title">
+        <div class="library-head">
+          <div>
+            <h2 id="library-title">Your scenes</h2>
+            <p class="muted">Make a living wallpaper from a photo, or from a few words.</p>
+          </div>
+          <div class="library-actions">
+            <button type="button" class="primary" id="new-image">New from image</button>
+            <button type="button" class="primary" id="new-describe">Describe a scene</button>
+            <button type="button" id="import-scene">Import…</button>
+          </div>
+        </div>
+        <ul class="card-grid" id="saved-grid" aria-label="Saved scenes"></ul>
+        <div class="empty" id="saved-empty" hidden>
+          <p>No saved scenes yet.</p>
+          <p class="muted">Start from an image or describe a scene, then save it here.</p>
+        </div>
+        <p class="loading muted" id="library-loading" role="status">Loading scenes…</p>
+        <h2 class="section-title" id="examples-title" hidden>Examples</h2>
+        <ul class="card-grid" id="example-grid" aria-labelledby="examples-title"></ul>
+        <footer class="credit muted small">Built on Deskworlds by Chase Lean.</footer>
+      </section>
+
+      <!-- Editor -->
+      <section id="editor-view" class="editor" aria-label="Scene editor" hidden>
+        <form class="controls" id="controls" autocomplete="off" novalidate>
+          <div class="controls-head">
+            <button type="button" class="ghost back" id="back-to-library" aria-label="Back to library">← Library</button>
+            <span class="dirty" id="dirty-state" aria-live="polite"></span>
+          </div>
+
+          <div class="field">
+            <label for="scene-name">Name</label>
+            <input type="text" id="scene-name" maxlength="60" placeholder="Untitled scene" data-path="name" data-type="text" />
+          </div>
+          <div class="field">
+            <label for="scene-description">Description</label>
+            <textarea id="scene-description" rows="2" maxlength="280" data-path="description" data-type="text"></textarea>
+          </div>
+
+          <div id="flow-panels">
+            <!-- Image panel -->
+            <section class="panel" id="image-panel" aria-labelledby="image-panel-title">
+              <h3 id="image-panel-title">Image</h3>
+              <div class="image-preview" id="image-preview" hidden>
+                <img id="image-thumb" alt="The scene's backdrop image" />
+                <p class="muted small" id="image-meta"></p>
+              </div>
+              <p class="muted small" id="image-empty">No image yet. A photo makes a great backdrop.</p>
+              <button type="button" id="pick-image" aria-describedby="image-types">Choose image…</button>
+              <p class="muted small" id="image-types">JPG, PNG or BMP.</p>
+              <div class="depth" id="depth-block" hidden>
+                <label class="switch" for="depth-toggle">
+                  <input type="checkbox" id="depth-toggle" role="switch" aria-describedby="depth-note" />
+                  <span>3D depth parallax</span>
+                </label>
+                <p class="muted small" id="depth-note">Makes a depth map so near things move more than far ones. The first time, the app downloads a 99 MB depth model (once, checked before use). It runs on your PC.</p>
+                <div class="progress-block" id="depth-progress" hidden>
+                  <progress id="depth-bar" max="1" aria-label="Depth map progress"></progress>
+                  <p class="small" id="depth-text" role="status" aria-live="polite"></p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Describe panel -->
+            <section class="panel" id="describe-panel" aria-labelledby="describe-title">
+              <h3 id="describe-title">Describe a scene</h3>
+              <div class="key-panel" id="describe-key" hidden></div>
+              <div id="describe-body">
+                <label for="prompt" class="sr-only">Scene description</label>
+                <textarea id="prompt" rows="3" maxlength="1000" placeholder="A moonlit jellyfish lagoon…" aria-describedby="prompt-hint"></textarea>
+                <p class="muted small" id="prompt-hint">Claude turns your words into a scene. With an image, it styles the scene around it.</p>
+                <div class="chips" id="chips" role="group" aria-label="Example ideas"></div>
+                <div class="row">
+                  <button type="button" class="primary" id="create">Create</button>
+                </div>
+                <div class="progress-block" id="generate-progress" hidden>
+                  <span class="spinner" aria-hidden="true"></span>
+                  <p class="small" id="generate-text" role="status" aria-live="polite">Asking Claude…</p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <details class="panel" id="look-panel" open>
+            <summary><h3>Look</h3></summary>
+            <div id="look-fields"></div>
+          </details>
+          <details class="panel" id="effects-panel" open>
+            <summary><h3>Effects</h3></summary>
+            <div id="effects-fields"></div>
+          </details>
+          <details class="panel" id="particles-panel" open>
+            <summary><h3>Particles</h3></summary>
+            <div id="particles-fields"></div>
+          </details>
+          <details class="panel" id="creatures-panel" open>
+            <summary><h3>Creatures</h3></summary>
+            <div id="creatures-fields"></div>
+          </details>
+          <details class="panel" id="life-panel" open>
+            <summary><h3>Food &amp; light</h3></summary>
+            <div id="life-fields"></div>
+          </details>
+
+          <details class="panel" id="advanced-panel">
+            <summary><h3>Advanced</h3></summary>
+            <label class="switch" for="allow-code">
+              <input type="checkbox" id="allow-code" role="switch" aria-describedby="code-warning" />
+              <span>Let Claude write code</span>
+            </label>
+            <p class="warning small" id="code-warning">Generated code runs on your PC. It is sandboxed with no network access, but only turn this on if you will read the code before running it.</p>
+            <div class="code-block" id="code-block" hidden>
+              <p class="small" id="code-origin">This scene comes with code (scene.js). Read it before you run it.</p>
+              <pre class="code" id="code-view" tabindex="0" aria-label="Scene code, read only"></pre>
+              <label class="check" for="code-approve">
+                <input type="checkbox" id="code-approve" />
+                <span>I've read this code and want to run it</span>
+              </label>
+              <p class="muted small" id="code-state" aria-live="polite"></p>
+            </div>
+          </details>
+        </form>
+
+        <div class="preview-pane">
+          <div class="stage" id="stage">
+            <iframe id="preview" title="Live preview of the scene" sandbox="allow-scripts" src="../scenes/studio/wallpaper.html?preview=1"></iframe>
+            <p class="stage-status muted" id="stage-status" role="status">Loading preview…</p>
+          </div>
+          <div class="preview-actions">
+            <p class="muted small" id="preview-note">Live preview. Move the cursor over it to see parallax and ripples.</p>
+            <div class="row">
+              <button type="button" id="save">Save</button>
+              <button type="button" class="primary" id="save-use">Save &amp; use as wallpaper</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Settings -->
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="dialog-body" id="settings-form">
+        <div class="dialog-head">
+          <h2 id="settings-title">Settings</h2>
+          <button type="submit" class="ghost icon" aria-label="Close settings" value="close">✕</button>
+        </div>
+        <div class="key-panel" id="settings-key"></div>
+        <div class="field">
+          <label for="model-select">Claude model</label>
+          <select id="model-select"></select>
+          <p class="muted small" id="model-state" aria-live="polite"></p>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Confirm -->
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+      <form method="dialog" class="dialog-body">
+        <h2 id="confirm-title">Are you sure?</h2>
+        <p id="confirm-text"></p>
+        <div class="row end">
+          <button type="submit" value="cancel" id="confirm-cancel">Cancel</button>
+          <button type="submit" value="ok" class="primary" id="confirm-ok">OK</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="key-template">
+      <p class="small"><span class="key-state" data-role="state">No key yet.</span></p>
+      <p class="muted small" data-role="intro">Creating scenes from words uses Claude through your own Anthropic API key. It costs a few cents per scene, billed to your Anthropic account. Get a key at console.anthropic.com → API keys.</p>
+      <div class="field">
+        <label data-role="label">Anthropic API key</label>
+        <div class="row">
+          <input type="password" data-role="input" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
+          <button type="button" class="primary" data-role="save">Save</button>
+          <button type="button" data-role="clear">Clear</button>
+        </div>
+        <p class="muted small">The key is stored encrypted for your Windows account and never shown again.</p>
+      </div>
+    </template>
+
+    <div class="toasts" id="toasts" aria-live="polite" aria-relevant="additions"></div>
+    <script type="module" src="studio.js"></script>
+  </body>
+</html>
