@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "name": "Summer meadow",
+  "description": "Butterflies wandering over a sunny meadow on a warm breeze, with petals in the air and nectar to find.",
+  "mode": "recipe",
+  "medium": "air",
+  "backdrop": { "kind": "gradient", "colors": ["#76b6ea", "#b9dcf5", "#e9efd6", "#b8cf7a", "#6f9a45"], "parallax": 0.3 },
+  "effects": { "ripples": 0.3, "caustics": 0, "rays": 0.35, "fog": 0.12, "vignette": 0.25, "tint": "#fff2d0", "sway": 0.05 },
+  "particles": [
+    { "kind": "petals", "amount": 0.35, "color": "#fff3f6", "speed": 0.8 },
+    { "kind": "dust", "amount": 0.4, "color": "#fff6dc", "speed": 0.7 }
+  ],
+  "creatures": [
+    { "kind": "butterfly", "count": 9, "colors": ["#ff9f43", "#2d1b10", "#ffd36b"], "size": 1.1, "speed": 1, "schooling": 0.1, "zone": [0.3, 0.9] },
+    { "kind": "butterfly", "count": 5, "colors": ["#6fb7ff", "#10213d", "#cfe8ff"], "size": 0.9, "speed": 1.1, "schooling": 0.1, "zone": [0.35, 0.85] }
+  ],
+  "food": "nectar",
+  "light": { "followClock": false, "mood": "day" }
+}

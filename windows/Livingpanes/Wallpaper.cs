@@ -81,6 +81,8 @@ sealed class Wallpaper : IDisposable {
   readonly DesktopHost host;
   bool loaded, inside, battery, disposed;
   int rate;
+  DateTime reportWindow = DateTime.MinValue;
+  int reports, reportsDropped;
 
   public Wallpaper(Rectangle bounds, DesktopHost host, World world, CoreWebView2Environment environment, string root) {
     Bounds = bounds;
@@ -107,10 +109,10 @@ sealed class Wallpaper : IDisposable {
       core.Settings.IsStatusBarEnabled = false;
       core.Settings.AreBrowserAcceleratorKeysEnabled = false;
       // Served from a private host name so module imports resolve as from a web server.
-      // ResourceServer answers every request itself (with a no-network policy); the
-      // folder mapping only makes the host name resolvable.
-      core.SetVirtualHostNameToFolderMapping(Host, root, CoreWebView2HostResourceAccessKind.Deny);
-      ResourceServer.Install(core, environment, root);
+      // ResourceServer answers every request itself, with a no-network policy. There must
+      // be no SetVirtualHostNameToFolderMapping as well: with one, WebView2 serves the
+      // folder directly and the handler (and its policy) never runs.
+      await ResourceServer.InstallAsync(core, environment, root);
       core.WebMessageReceived += OnMessage;
       core.NavigationCompleted += (_, e) => {
         if (!e.IsSuccess) Log.Write($"the scene did not load: {e.WebErrorStatus}");
@@ -137,7 +139,18 @@ sealed class Wallpaper : IDisposable {
         Send();
         SendExtras();
       } else if (kind == "report") {
-        Log.Write($"page: {ResourceServer.Truncate(message.RootElement.GetProperty("text").GetString(), 2000)}");
+        // At most 20 lines a minute per screen; a page stuck in an error loop says so once.
+        var now = DateTime.UtcNow;
+        if (now - reportWindow > TimeSpan.FromMinutes(1)) {
+          if (reportsDropped > 0) Log.Write($"page: ({reportsDropped} more messages dropped)");
+          reportWindow = now;
+          reports = 0;
+          reportsDropped = 0;
+        }
+        if (++reports <= 20)
+          Log.Write($"page: {ResourceServer.Truncate(message.RootElement.GetProperty("text").GetString(), 1000)}");
+        else
+          reportsDropped++;
       }
     } catch (Exception error) {
       Log.Write($"unreadable page message: {error.Message}");

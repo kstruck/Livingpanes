@@ -300,7 +300,7 @@ sealed class Controller : ApplicationContext {
     }
   }
 
-  void OpenStudio() {
+  internal void OpenStudio() {
     if (environment is null) return;
     if (studio is { IsDisposed: false }) {
       if (studio.WindowState == FormWindowState.Minimized) studio.WindowState = FormWindowState.Normal;
@@ -432,12 +432,14 @@ sealed class Controller : ApplicationContext {
 sealed class Signals : NativeWindow, IDisposable {
   public const string SnapshotEvent = @"Local\Livingpanes.Snapshot";
   public const string QuitEvent = @"Local\Livingpanes.Quit";
+  public const string StudioEvent = @"Local\Livingpanes.Studio";
 
   readonly Controller controller;
   readonly uint taskbarCreated = Native.RegisterWindowMessage("TaskbarCreated");
   readonly EventWaitHandle snapshot = new(false, EventResetMode.AutoReset, SnapshotEvent);
   readonly EventWaitHandle quit = new(false, EventResetMode.AutoReset, QuitEvent);
-  readonly RegisteredWaitHandle snapshotWait, quitWait;
+  readonly EventWaitHandle studio = new(false, EventResetMode.AutoReset, StudioEvent);
+  readonly RegisteredWaitHandle snapshotWait, quitWait, studioWait;
   readonly SynchronizationContext ui = SynchronizationContext.Current!;
 
   public Signals(Controller controller) {
@@ -449,6 +451,8 @@ sealed class Signals : NativeWindow, IDisposable {
       (_, _) => ui.Post(_ => controller.Snapshot(), null), null, -1, false);
     quitWait = ThreadPool.RegisterWaitForSingleObject(quit,
       (_, _) => ui.Post(_ => controller.ExitThread(), null), null, -1, false);
+    studioWait = ThreadPool.RegisterWaitForSingleObject(studio,
+      (_, _) => ui.Post(_ => controller.OpenStudio(), null), null, -1, false);
   }
 
   const int HotkeyFeed = 1, HotkeyTap = 2;
@@ -487,6 +491,8 @@ sealed class Signals : NativeWindow, IDisposable {
     SetHotkeys(false);
     snapshotWait.Unregister(null);
     quitWait.Unregister(null);
+    studioWait.Unregister(null);
+    studio.Dispose();
     snapshot.Dispose();
     quit.Dispose();
     DestroyHandle();

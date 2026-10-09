@@ -36,8 +36,15 @@ sealed class StudioForm : Form {
       core.Settings.AreDevToolsEnabled = false;
       core.Settings.IsStatusBarEnabled = false;
       core.Settings.AreDefaultContextMenusEnabled = true;
-      core.SetVirtualHostNameToFolderMapping(Wallpaper.Host, root, CoreWebView2HostResourceAccessKind.Deny);
-      ResourceServer.Install(core, environment, root);
+      // No folder mapping: it would bypass ResourceServer and its policy (see Wallpaper.cs).
+      await ResourceServer.InstallAsync(core, environment, root);
+      // The Studio window only ever shows the Studio. Its top frame is the one page that
+      // may spend API credit and write files, so it must not be navigated elsewhere.
+      core.NavigationStarting += (_, e) => {
+        if (!e.Uri.StartsWith($"{ResourceServer.Origin}/studio/", StringComparison.OrdinalIgnoreCase)) e.Cancel = true;
+      };
+      // Only top-frame messages arrive here; frame messages need CoreWebView2Frame handlers,
+      // which this app never adds, so the preview frame cannot reach HandleAsync.
       core.WebMessageReceived += OnMessage;
       core.Navigate($"{ResourceServer.Origin}/studio/index.html");
     } catch (Exception error) {
@@ -58,13 +65,15 @@ sealed class StudioForm : Form {
       return;
     }
     JsonObject request;
+    string? id;
+    string kind;
     try {
       request = JsonNode.Parse(e.WebMessageAsJson)!.AsObject();
+      id = request["id"]?.ToString();
+      kind = request["kind"] is JsonValue value && value.TryGetValue(out string? text) ? text : "";
     } catch {
       return;
     }
-    var id = request["id"]?.ToString();
-    var kind = request["kind"]?.GetValue<string>() ?? "";
     try {
       var result = await HandleAsync(kind, request, id);
       Reply(new JsonObject { ["id"] = id, ["ok"] = true, ["result"] = result });
@@ -124,12 +133,7 @@ sealed class StudioForm : Form {
         if (dialog.ShowDialog(this) != DialogResult.OK) return null;
         var info = new FileInfo(dialog.FileName);
         if (info.Length > Store.MaxImageBytes) throw new InvalidDataException("That image is larger than 200 MB.");
-        int width, height;
-        using (var stream = File.OpenRead(info.FullName))
-        using (var image = Image.FromStream(stream, false, false)) {
-          width = image.Width;
-          height = image.Height;
-        }
+        var (width, height) = Store.CheckImage(info.FullName);
         var folder = Store.DraftFolder(draft);
         foreach (var old in Directory.GetFiles(folder, "image.*").Concat(Directory.GetFiles(folder, "depth.png")))
           File.Delete(old);
@@ -187,11 +191,10 @@ sealed class StudioForm : Form {
         var draft = request["example"]?.GetValue<string>() is { } example
           ? Store.RemixExample(root, example) : Store.EditScene(Arg(request, "id"));
         var folder = Store.DraftFolder(draft);
-        var code = Path.Combine(folder, "scene.js");
         return new JsonObject {
           ["draft"] = draft, ["base"] = DraftBase(draft),
           ["recipe"] = JsonNode.Parse(Store.ReadRecipe(folder) ?? "{}"),
-          ["code"] = File.Exists(code) ? File.ReadAllText(code) : null,
+          ["code"] = Store.ReadCode(folder),
         };
       }
 

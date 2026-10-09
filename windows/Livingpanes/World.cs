@@ -91,8 +91,11 @@ static class Log {
     try {
       lock (gate) {
         Directory.CreateDirectory(Folder);
-        File.AppendAllText(Path.Combine(Folder, "livingpanes.log"),
-          $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {text}{Environment.NewLine}");
+        var file = Path.Combine(Folder, "livingpanes.log");
+        // Two files of at most 2 MB each, so a chatty page can never fill the disk.
+        if (File.Exists(file) && new FileInfo(file).Length > 2 * 1024 * 1024)
+          File.Move(file, file + ".1", true);
+        File.AppendAllText(file, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {text}{Environment.NewLine}");
       }
     } catch {
       // A log that cannot be written is not worth stopping the wallpaper for.

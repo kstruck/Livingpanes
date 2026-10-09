@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "name": "Sunlit shallows",
+  "description": "Bright shallow water full of light: a school of orange fish and a few angelfish under dancing caustics.",
+  "mode": "recipe",
+  "medium": "water",
+  "backdrop": { "kind": "gradient", "colors": ["#4fd0e0", "#1f9fc0", "#0f6c95", "#08405f"], "parallax": 0.3 },
+  "effects": { "ripples": 0.6, "caustics": 0.7, "rays": 0.55, "fog": 0.15, "vignette": 0.3, "tint": "#e0fbff", "sway": 0.2 },
+  "particles": [
+    { "kind": "bubbles", "amount": 0.35, "color": "#e8fbff", "speed": 1 },
+    { "kind": "dust", "amount": 0.35, "color": "#eafcff", "speed": 0.5 }
+  ],
+  "creatures": [
+    { "kind": "fish", "count": 20, "colors": ["#ff9a3c", "#c24a12", "#ffe0b0"], "size": 0.9, "speed": 1, "schooling": 0.8, "zone": [0.25, 0.75] },
+    { "kind": "angelfish", "count": 5, "colors": ["#f6f3e6", "#1f1f2a", "#f2cf60"], "size": 1.1, "speed": 1, "schooling": 0.3, "zone": [0.3, 0.85] }
+  ],
+  "food": "flakes",
+  "light": { "followClock": false, "mood": "day" }
+}

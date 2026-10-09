@@ -20,10 +20,12 @@ You need Node.js 20+ and, for the Windows app, the .NET 10 SDK.
 npm test
 npm run check
 dotnet test windows\Livingpanes.sln
+dotnet run --project windows\Livingpanes -- --selftest
 ```
 
-`npm test` and `npm run check` use a POSIX shell; on Windows run them from Git Bash or
-WSL (CI runs them on Ubuntu).
+`--selftest` opens a hidden WebView2 and tries to break out of the sandbox (network,
+WebRTC, path traversal) and checks that the Studio preview loads. It must print only
+`PASS` lines. Run it after any change to `ResourceServer.cs`, `Wallpaper.cs` or `Studio.cs`.
 
 To try the scenes in a browser: `npm start`, then open http://127.0.0.1:8080. To run the
 Windows app from source: `dotnet run --project windows\Livingpanes`.

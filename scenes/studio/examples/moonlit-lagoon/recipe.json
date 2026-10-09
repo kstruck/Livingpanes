@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "Moonlit lagoon",
+  "description": "Jellyfish drifting through a still lagoon at night, lit from within, among sparks of plankton.",
+  "mode": "recipe",
+  "medium": "water",
+  "backdrop": { "kind": "gradient", "colors": ["#1b3f63", "#0b2240", "#06142a", "#020812"], "parallax": 0.35 },
+  "effects": { "ripples": 0.7, "caustics": 0.18, "rays": 0.35, "fog": 0.25, "vignette": 0.45, "tint": "#9fc4ff", "sway": 0.25 },
+  "particles": [
+    { "kind": "plankton", "amount": 0.7, "color": "#7ff5e0", "speed": 0.8, "night": true },
+    { "kind": "bubbles", "amount": 0.15, "color": "#cfe9ff", "speed": 0.6 }
+  ],
+  "creatures": [
+    { "kind": "jellyfish", "count": 9, "colors": ["#c9a8ff", "#7fe7ff"], "size": 1.2, "speed": 1, "schooling": 0.05, "zone": [0.1, 0.85], "glow": true }
+  ],
+  "food": "none",
+  "light": { "followClock": false, "mood": "night" }
+}

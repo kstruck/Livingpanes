@@ -104,10 +104,44 @@ static partial class Store {
     foreach (var file in Directory.GetFiles(source))
       if (allowedFile.IsMatch(Path.GetFileName(file)))
         File.Copy(file, Path.Combine(staging, Path.GetFileName(file)));
-    if (Directory.Exists(target)) Directory.Delete(target, true);
-    Directory.Move(staging, target);
+    // Swap by renaming, so a locked file or a crash never leaves a half-deleted scene:
+    // the old copy is only deleted once the new one is in place.
+    var old = target + ".old";
+    if (Directory.Exists(old)) Directory.Delete(old, true);
+    if (Directory.Exists(target)) Directory.Move(target, old);
+    try {
+      Directory.Move(staging, target);
+    } catch {
+      if (Directory.Exists(old) && !Directory.Exists(target)) Directory.Move(old, target);
+      throw;
+    }
+    try {
+      if (Directory.Exists(old)) Directory.Delete(old, true);
+    } catch (IOException error) {
+      Log.Write($"old copy of {id} left behind: {error.Message}");
+    }
     File.WriteAllText(marker, id);
     return id;
+  }
+
+  /// The code a scene folder holds, for the Studio to show before it may run.
+  public static string? ReadCode(string folder) {
+    var file = Path.Combine(folder, "scene.js");
+    if (!File.Exists(file)) return null;
+    if (new FileInfo(file).Length > MaxCodeBytes) throw new InvalidDataException("This scene's code is too large to show.");
+    return File.ReadAllText(file);
+  }
+
+  /// Photos larger than any graphics card can hold, or headers that claim such sizes to
+  /// make a decoder allocate gigabytes, are refused before anything decodes them.
+  public const int MaxImageSide = 16384;
+
+  public static (int Width, int Height) CheckImage(string file) {
+    using var stream = File.OpenRead(file);
+    using var image = Image.FromStream(stream, false, false);
+    if (image.Width > MaxImageSide || image.Height > MaxImageSide || (long)image.Width * image.Height > 200_000_000)
+      throw new InvalidDataException($"That image is {image.Width}×{image.Height}. The largest Livingpanes can show is {MaxImageSide} pixels on a side.");
+    return (image.Width, image.Height);
   }
 
   public static string EditScene(string id) {
@@ -207,6 +241,8 @@ static partial class Store {
         var name = entry.FullName;
         if (name != Path.GetFileName(name) || !allowedFile.IsMatch(name))
           throw new InvalidDataException($"The scene holds a file it should not: {ResourceServer.Truncate(name, 60)}");
+        // Lowercased on disk, so the limit and every later lookup agree on the name.
+        name = name.ToLowerInvariant();
         var limit = name == "recipe.json" ? MaxRecipeBytes : name == "scene.js" ? MaxCodeBytes : MaxImageBytes;
         using var input = entry.Open();
         using var output = File.Create(Path.Combine(staging, name));
@@ -218,6 +254,13 @@ static partial class Store {
           total += read;
           if (written > limit || total > MaxSceneBytes) throw new InvalidDataException("The scene is too large.");
           output.Write(buffer, 0, read);
+        }
+      }
+      foreach (var image in Directory.GetFiles(staging, "*.*").Where(f => !f.EndsWith(".json") && !f.EndsWith(".js"))) {
+        try {
+          CheckImage(image);
+        } catch (Exception error) when (error is not InvalidDataException) {
+          throw new InvalidDataException("The scene holds an image that cannot be read.");
         }
       }
       var recipeFile = Path.Combine(staging, "recipe.json");

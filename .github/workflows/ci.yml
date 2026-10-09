@@ -45,6 +45,15 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build and test
         run: dotnet test windows/Livingpanes.sln -c Release
+      - name: Sandbox self-test (real WebView2 tries to reach the internet)
+        shell: pwsh
+        run: |
+          dotnet build windows/Livingpanes/Livingpanes.csproj -c Release --nologo -v quiet
+          $out = Join-Path $env:RUNNER_TEMP 'selftest.txt'
+          $p = Start-Process windows/Livingpanes/bin/Release/net10.0-windows/Livingpanes.exe -ArgumentList '--selftest' `
+            -RedirectStandardOutput $out -Wait -PassThru
+          Get-Content $out
+          exit $p.ExitCode
       - name: Vulnerable packages
         shell: pwsh
         run: |

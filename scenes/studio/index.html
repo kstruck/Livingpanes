@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#04090c" />
+    <meta name="description" content="Studio example scenes, drawn by the recipe engine. A local, interactive preview." />
+    <title>Studio scenes • Livingpanes</title>
+    <link rel="icon" href="../../ui/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      #frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+      .scene-nav button { background: none; border: 0; padding: 0; font: inherit; color: var(--text-muted); cursor: pointer; min-height: var(--control-height); }
+      .scene-nav button[aria-current] { color: var(--text); text-decoration: underline; text-underline-offset: var(--space-2); }
+      .hint { color: var(--text-muted); text-shadow: 0 2px 12px var(--background); }
+    </style>
+  </head>
+  <body>
+    <main id="stage" aria-label="Studio scenes">
+      <iframe id="frame" title="Studio scene"></iframe>
+      <nav class="chrome" aria-label="Scenes">
+        <a class="home-link" href="../../" aria-label="Livingpanes home">Livingpanes</a>
+        <div class="scene-nav" id="list"></div>
+      </nav>
+      <footer class="chrome"><span class="hint">Click to feed · Shift+click to tap the glass</span><span></span></footer>
+    </main>
+    <script type="module">
+      const frame = document.querySelector('#frame'), list = document.querySelector('#list');
+      const params = new URLSearchParams(location.search);
+      const examples = await fetch('./examples/index.json').then((r) => r.json()).catch(() => []);
+      function show(name) {
+        frame.src = `./wallpaper.html?example=${encodeURIComponent(name)}`;
+        for (const b of list.children) b.toggleAttribute('aria-current', b.dataset.name === name);
+        history.replaceState(null, '', `?example=${encodeURIComponent(name)}`);
+      }
+      for (const { name, title } of examples) {
+        const b = document.createElement('button');
+        b.textContent = title; b.dataset.name = name;
+        b.addEventListener('click', () => show(name));
+        list.append(b);
+      }
+      const first = examples.find((e) => e.name === params.get('example')) || examples[0];
+      if (first) show(first.name);
+    </script>
+  </body>
+</html>

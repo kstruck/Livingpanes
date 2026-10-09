@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "name": "Deep sea",
+  "description": "A school of bioluminescent fish in the dark far below the surface, with glowing plankton and slow jellyfish.",
+  "mode": "recipe",
+  "medium": "water",
+  "backdrop": { "kind": "gradient", "colors": ["#0a2a3d", "#04131f", "#01070d"], "parallax": 0.25 },
+  "effects": { "ripples": 0.5, "caustics": 0, "rays": 0.18, "fog": 0.35, "vignette": 0.55, "tint": "#7fd6ff", "sway": 0.15 },
+  "particles": [
+    { "kind": "plankton", "amount": 0.9, "color": "#57f0ff", "speed": 0.6 },
+    { "kind": "dust", "amount": 0.3, "color": "#9fd8e6", "speed": 0.4 }
+  ],
+  "creatures": [
+    { "kind": "fish", "count": 22, "colors": ["#3fe0ff", "#0b3a66", "#a2f7ff"], "size": 0.8, "speed": 1, "schooling": 0.85, "zone": [0.25, 0.8], "glow": true },
+    { "kind": "jellyfish", "count": 4, "colors": ["#ff7fd0", "#8a6bff"], "size": 0.9, "speed": 0.8, "zone": [0.1, 0.6], "glow": true }
+  ],
+  "food": "pellets",
+  "light": { "followClock": false, "mood": "night" }
+}

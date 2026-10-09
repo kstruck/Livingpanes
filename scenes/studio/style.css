@@ -1,0 +1,19 @@
+@import url("../../ui/scene.css");
+:root { --background: #04090c; }
+body { background: var(--background); }
+
+/* Pet names: light text with a dark halo, so they read on any backdrop. */
+.pet-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; contain: strict; }
+.pet { position: absolute; left: 0; top: 0; will-change: transform; }
+.pet-name {
+  transform: translateX(-50%); white-space: nowrap; padding: 1px 8px 2px; border-radius: 999px;
+  font: 600 13px/1.35 var(--font-body); letter-spacing: .01em; color: #fbfaf6;
+  background: rgba(8, 12, 16, .34);
+  text-shadow: 0 0 2px rgba(0, 0, 0, .9), 0 1px 3px rgba(0, 0, 0, .8), 0 0 10px rgba(0, 0, 0, .5);
+}
+.pet-mood { position: absolute; left: 0; top: 0; display: flex; align-items: flex-end; gap: 1px; color: #dfe4ea; opacity: .9; }
+.pet-mood svg { width: 22px; height: 13px; fill: rgba(225, 230, 238, .85); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+.pet-mood span { font: 700 10px/1 var(--font-body); text-shadow: 0 1px 2px rgba(0, 0, 0, .8); animation: zzz 2.4s ease-in-out infinite; }
+.pet-mood span + span { font-size: 8px; animation-delay: .6s; }
+@keyframes zzz { 0%, 100% { transform: translateY(0); opacity: .35; } 50% { transform: translateY(-4px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pet-mood span { animation: none; } }

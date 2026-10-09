@@ -78,6 +78,9 @@ static class Native {
   [DllImport("kernel32.dll")]
   public static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS status);
 
+  [DllImport("kernel32.dll")]
+  public static extern bool AttachConsole(int process);
+
   public const int WM_HOTKEY = 0x0312;
   public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
   [DllImport("user32.dll")]

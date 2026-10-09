@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "Koi at dusk",
+  "description": "Koi turning slowly in a garden pond seen from above while cherry petals drift down. Follows the time of day.",
+  "mode": "recipe",
+  "medium": "water",
+  "backdrop": { "kind": "gradient", "colors": ["#2f5a4d", "#1d3f39", "#122a2a", "#0a1a1c"], "parallax": 0.3 },
+  "effects": { "ripples": 0.8, "caustics": 0.45, "rays": 0.1, "fog": 0.12, "vignette": 0.5, "tint": "#ffd9a8", "sway": 0.2 },
+  "particles": [
+    { "kind": "petals", "amount": 0.45, "color": "#ffc9da", "speed": 0.7 },
+    { "kind": "dust", "amount": 0.2, "color": "#fff1d6", "speed": 0.5 }
+  ],
+  "creatures": [
+    { "kind": "koi", "count": 8, "colors": ["#fbf6ee", "#e4572e", "#1c1c1c"], "size": 1, "speed": 1, "schooling": 0.2, "zone": [0.08, 0.92] }
+  ],
+  "food": "pellets",
+  "light": { "followClock": true, "mood": "dusk" }
+}

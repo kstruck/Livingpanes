@@ -32,6 +32,16 @@ script for import maps), so no page can reach the network. Navigation away from
 `https://deskworlds.local/` and new windows are refused. Ids match `^[a-z0-9-]{1,64}$`;
 paths are resolved and must stay inside their root.
 
+- ⚠️ **Never add `SetVirtualHostNameToFolderMapping`.** With a mapping, WebView2 serves
+  the folder itself and `WebResourceRequested` never fires, so the policy and the path
+  checks silently stop applying. This happened once, before release.
+- WebRTC (UDP that no CSP governs) is removed in every frame by `ResourceServer.NoWebRtc`.
+- Responses carry `Access-Control-Allow-Origin: null`, so the sandboxed (opaque-origin)
+  Studio preview can load the engine's modules and the draft's images.
+- `Livingpanes.exe --selftest` loads a page in a hidden WebView2 and tries fetch, image,
+  WebSocket and WebRTC escapes, traversal, and the sandboxed preview. CI runs it.
+- `Livingpanes.exe --depth <image>` writes `depth.png` beside an image (developer check).
+
 ## Wallpaper page contract
 
 Every wallpaper page (`scenes/<world>/wallpaper.html`, `scenes/studio/wallpaper.html`)
@@ -115,7 +125,11 @@ from the Studio window's top frame.
 
 The preview is an `<iframe sandbox="allow-scripts">` showing
 `/scenes/studio/wallpaper.html?preview=1`, so code in it cannot reach the Studio page
-or the host.
+or the host. It posts `{ type: 'deskworlds:preview-ready' }` to the parent once it
+listens for recipes. Host-side, only the Studio window's top frame is heard
+(`CoreWebView2.WebMessageReceived` never carries iframe messages, and no
+`CoreWebView2Frame` handlers are ever added), and the Studio window cannot navigate
+anywhere outside `/studio/`.
 
 ## Claude
 

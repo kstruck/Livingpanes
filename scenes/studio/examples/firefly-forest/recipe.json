@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "Firefly forest",
+  "description": "A forest clearing after dark, fireflies blinking among the stars and the low mist.",
+  "mode": "recipe",
+  "medium": "air",
+  "backdrop": { "kind": "gradient", "colors": ["#0c1430", "#13213a", "#142b2a", "#0b1a14", "#050c08"], "parallax": 0.35 },
+  "effects": { "ripples": 0.2, "caustics": 0, "rays": 0.1, "fog": 0.4, "vignette": 0.5, "tint": "#b8d4ff", "sway": 0.03 },
+  "particles": [
+    { "kind": "stars", "amount": 0.6, "color": "#fff8e0", "speed": 1, "night": true },
+    { "kind": "fireflies", "amount": 0.5, "color": "#d9ff6a", "speed": 0.7, "night": true }
+  ],
+  "creatures": [
+    { "kind": "firefly", "count": 26, "colors": ["#e8ff7a"], "size": 1.2, "speed": 0.8, "schooling": 0.05, "zone": [0.35, 0.92], "glow": true }
+  ],
+  "food": "nectar",
+  "light": { "followClock": false, "mood": "night" }
+}

@@ -82,7 +82,41 @@ static class ResourceServer {
     return File.Exists(full) ? new Resolved(full, type) : null;
   }
 
-  public static void Install(CoreWebView2 core, CoreWebView2Environment environment, string appRoot) {
+  /// WebRTC can send UDP packets (STUN/TURN) that no Content-Security-Policy governs, so
+  /// it is taken away in every frame before page code runs. Scenes never need it.
+  public const string NoWebRtc = """
+    (() => {
+      const names = ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel', 'RTCSessionDescription',
+        'RTCIceCandidate', 'RTCRtpSender', 'RTCRtpReceiver', 'RTCRtpTransceiver', 'RTCDtlsTransport',
+        'RTCIceTransport', 'RTCSctpTransport', 'RTCCertificate'];
+      const strip = (w) => {
+        for (const name of names) {
+          try { Object.defineProperty(w, name, { value: undefined, writable: false, configurable: false }); } catch {}
+        }
+      };
+      strip(window);
+      // A frame a script creates without a URL gets no document-created script, so it is
+      // stripped the moment its window is reached.
+      for (const proto of [HTMLIFrameElement.prototype, HTMLFrameElement.prototype, HTMLObjectElement.prototype]) {
+        for (const property of ['contentWindow', 'contentDocument']) {
+          const original = Object.getOwnPropertyDescriptor(proto, property);
+          if (!original?.get) continue;
+          Object.defineProperty(proto, property, {
+            configurable: false,
+            get() {
+              const value = original.get.call(this);
+              const win = property === 'contentWindow' ? value : value?.defaultView;
+              if (win) { try { strip(win); } catch {} }
+              return value;
+            },
+          });
+        }
+      }
+    })();
+    """;
+
+  public static async Task InstallAsync(CoreWebView2 core, CoreWebView2Environment environment, string appRoot) {
+    await core.AddScriptToExecuteOnDocumentCreatedAsync(NoWebRtc);
     core.AddWebResourceRequestedFilter($"{Origin}/*", CoreWebView2WebResourceContext.All,
       CoreWebView2WebResourceRequestSourceKinds.All);
     core.WebResourceRequested += (_, e) => {
@@ -90,7 +124,7 @@ static class ResourceServer {
         ? Resolve(e.Request.Uri, appRoot, Store.ScenesRoot, Store.DraftsRoot) : null;
       if (found is null) {
         e.Response = environment.CreateWebResourceResponse(null, 404, "Not Found",
-          $"Content-Security-Policy: {Policy}\r\nAccess-Control-Allow-Origin: *");
+          $"Content-Security-Policy: {Policy}\r\nAccess-Control-Allow-Origin: null");
         return;
       }
       Stream stream;
@@ -103,9 +137,10 @@ static class ResourceServer {
       e.Response = environment.CreateWebResourceResponse(stream, 200, "OK",
         $"Content-Type: {found.ContentType}\r\n" +
         $"Content-Security-Policy: {Policy}\r\n" +
-        // The Studio preview is a sandboxed frame with an opaque origin; its module and
-        // image loads from this same host need CORS to succeed. Everything here is local.
-        "Access-Control-Allow-Origin: *\r\n" +
+        // The Studio preview is a sandboxed frame with an opaque ("null") origin; its module
+        // and image loads from this host need CORS to succeed. No other origin can ever
+        // load a page here, since navigation never leaves deskworlds.local.
+        "Access-Control-Allow-Origin: null\r\n" +
         "Cache-Control: no-cache\r\n" +
         "X-Content-Type-Options: nosniff");
     };

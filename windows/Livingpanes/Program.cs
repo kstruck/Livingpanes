@@ -3,6 +3,7 @@
 //   Livingpanes.exe              run (one copy at a time)
 //   Livingpanes.exe --snapshot   ask the running copy to save its first screen to %TEMP%\livingpanes.png
 //   Livingpanes.exe --quit       ask the running copy to quit
+//   Livingpanes.exe --studio     ask the running copy to open the Studio
 
 namespace Livingpanes;
 
@@ -14,11 +15,31 @@ static class Program {
   static int Main(string[] args) {
     if (args.Contains("--snapshot")) return Signal(Signals.SnapshotEvent);
     if (args.Contains("--quit")) return Signal(Signals.QuitEvent);
+    if (args.Contains("--studio")) return Signal(Signals.StudioEvent);
+
+    var root = Root = FindScenes();
+    if (args.Length == 2 && args[0] == "--depth") {
+      // Developer check: writes depth.png next to the given image.
+      Native.AttachConsole(-1);
+      try {
+        var output = Depth.MakeAsync(Path.GetFullPath(args[1]), (text, _) => Console.WriteLine(text), CancellationToken.None)
+          .GetAwaiter().GetResult();
+        Console.WriteLine($"wrote {output}");
+        return 0;
+      } catch (Exception error) {
+        Console.WriteLine($"depth failed: {error.Message}");
+        return 1;
+      }
+    }
+    if (args.Contains("--selftest")) {
+      // A WinExe has no console of its own; borrow the caller's so results print there.
+      Native.AttachConsole(-1);
+      return root is null ? 2 : SelfTest.Run(root);
+    }
 
     using var single = new Mutex(true, @"Local\Livingpanes", out var first);
     if (!first) return 0;
 
-    var root = Root = FindScenes();
     if (root is null) {
       Log.Write("no scenes folder next to the app or above it");
       MessageBox.Show("Livingpanes could not find its scenes folder.", "Livingpanes");

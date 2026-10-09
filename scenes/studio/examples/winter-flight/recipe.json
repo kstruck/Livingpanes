@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "Winter flight",
+  "description": "A flock of birds crossing a pale winter sky at dusk while snow falls.",
+  "mode": "recipe",
+  "medium": "air",
+  "backdrop": { "kind": "gradient", "colors": ["#3b4f7a", "#8a8fb3", "#e4b7a0", "#f1d9c4"], "parallax": 0.25 },
+  "effects": { "ripples": 0.2, "caustics": 0, "rays": 0.2, "fog": 0.3, "vignette": 0.35, "tint": "#ffe3cf", "sway": 0.02 },
+  "particles": [
+    { "kind": "snow", "amount": 0.55, "color": "#ffffff", "speed": 0.8 }
+  ],
+  "creatures": [
+    { "kind": "bird", "count": 14, "colors": ["#23232c"], "size": 0.9, "speed": 1, "schooling": 0.75, "zone": [0.08, 0.5] }
+  ],
+  "food": "seeds",
+  "light": { "followClock": false, "mood": "dusk" }
+}

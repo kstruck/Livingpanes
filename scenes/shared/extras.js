@@ -156,7 +156,12 @@ function install() {
     // has its own sceneFeedAt; Betta has no way to aim, so it gets its usual pinch.
     if (typeof window.__ownFeedAt === 'function') window.__ownFeedAt(x, y);
     else if (world === 'riverscape' || world === 'reefscape' || world === 'bonfirescape') dropAt(x, y);
-    else if (typeof window.sceneFeed === 'function') window.sceneFeed();
+    else if (typeof window.sceneFeed === 'function') {
+      // The sceneFeed wrapper already drops the pets' crumbs (near the top).
+      window.sceneFeed();
+      schedule();
+      return;
+    }
     if (WATER.has(world)) for (let i = 0; i < 5; i++) crumbs.push(crumb(x, y));
     schedule();
   };

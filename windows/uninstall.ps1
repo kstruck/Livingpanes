@@ -16,6 +16,8 @@ while ((Get-Process Livingpanes -ErrorAction SilentlyContinue) -and (Get-Date) -
 Get-Process Livingpanes -ErrorAction SilentlyContinue | Stop-Process -Force
 
 Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Livingpanes -ErrorAction SilentlyContinue
+$menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Livingpanes'
+if (Test-Path $menu) { Remove-Item $menu -Recurse -Force }
 # This script may live inside the folder it deletes; PowerShell has already read it.
 if (Test-Path $app) { Remove-Item $app -Recurse -Force -ErrorAction SilentlyContinue }
 

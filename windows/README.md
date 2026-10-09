@@ -1,44 +1,26 @@
-# Deskworlds for Windows
+# windows/
 
-The Windows 11 twin of the macOS agent in `wallpaper/`. It shows the same scenes from
-`scenes/`, unchanged, behind the desktop icons on every screen.
+The Livingpanes Windows host. Install and usage are in the [main README](../README.md);
+how it works is in [ARCHITECTURE.md](../ARCHITECTURE.md).
 
-## Install
-
-You need Windows 10 or 11, the .NET 10 SDK, and the Microsoft Edge WebView2 Runtime
-(already part of Windows 11). From the project folder, in Windows PowerShell:
+| File | Role |
+| --- | --- |
+| `Livingpanes/Program.cs` | entry point, single instance, `--snapshot` / `--quit` / `--studio` |
+| `Livingpanes/Controller.cs` | one wallpaper per screen, frame-rate policy, tray menu, hotkeys, pets |
+| `Livingpanes/Desktop.cs` | puts a window behind the desktop icons (24H2 Progman layout and the older WorkerW one) |
+| `Livingpanes/Wallpaper.cs` | one WebView2 per screen and the page bridge |
+| `Livingpanes/ResourceServer.cs` | serves every page from local files with a no-network CSP |
+| `Livingpanes/Store.cs` | saved scenes, drafts, `.livingpane` import and export |
+| `Livingpanes/Studio.cs` | the Studio window and its message protocol |
+| `Livingpanes/Claude.cs` | "describe a scene" (user's own key, DPAPI-encrypted) |
+| `Livingpanes/Depth.cs` | Depth Anything V2 Small on ONNX Runtime, for 3D parallax |
+| `Livingpanes.Tests/` | path, id and import safety tests |
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File windows\install.ps1
+dotnet test windows\Livingpanes.sln
+dotnet run --project windows\Livingpanes
 ```
 
-This builds the app, copies it and the scenes to `%LOCALAPPDATA%\Programs\Deskworlds`,
-adds it to sign-in (`HKCU\...\CurrentVersion\Run`), and starts it. Your desktop picture
-is not changed; the world draws over it. To remove it, run `windows\uninstall.ps1`.
-
-## Usage
-
-Click the Deskworlds icon in the system tray to switch worlds, feed the creatures, stir
-the fire, pause, or quit. Desktop icons and clicks work as usual.
-
-The wallpaper runs at 60 fps plugged in and 30 on battery, 20 when windows cover most of
-a screen, and stops when a screen is almost fully covered, the session is locked, the
-display is off, or Energy Saver is on. If Windows "Animation effects" is off, it starts
-paused until you press Resume, as the Mac version does for Reduce Motion.
-
-## How it works
-
-| Part | File |
-| --- | --- |
-| Finds the desktop's windows and puts a window behind the icons (24H2 layout inside Progman, and the older WorkerW layout) | `Deskworlds/Desktop.cs` |
-| One WebView2 per screen, serving the scenes from `https://deskworlds.local/`, with a stand-in for the WebKit message handlers the scenes call | `Deskworlds/Wallpaper.cs` |
-| Frame rate policy, cursor tracking, tray menu, Explorer restarts, display power | `Deskworlds/Controller.cs` |
-
-The page never gets mouse events; the cursor position is read on a timer and sent as a
-`pointermove`, as on macOS.
-
-## Checking it
-
-- Log: `%LOCALAPPDATA%\Deskworlds\deskworlds.log`
-- `Deskworlds.exe --snapshot` saves the first screen to `%TEMP%\deskworlds.png` and logs the page state.
-- `Deskworlds.exe --quit` stops the running copy.
+Run from a build, the app finds the scenes by walking up to the repository root. The log
+is `%LOCALAPPDATA%\Livingpanes\livingpanes.log`; `Livingpanes.exe --snapshot` writes
+`%TEMP%\livingpanes.png` and the page state to the log.

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Studio preview harness</title>
+    <style>html, body { margin: 0; height: 100%; background: #000; } iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }</style>
+  </head>
+  <body>
+    <!-- Manual test page: drives wallpaper.html?preview=1 the way the Studio app does.
+         From the console: send(recipe, base). -->
+    <script>
+      // ?sandbox=0 drops the sandbox: serve.mjs sends no CORS headers, so a sandboxed
+      // (opaque-origin) frame cannot load its module scripts from it.
+      const frame = document.createElement('iframe');
+      frame.id = 'preview';
+      if (new URLSearchParams(location.search).get('sandbox') !== '0') frame.sandbox = 'allow-scripts';
+      frame.src = '../wallpaper.html?preview=1';
+      document.body.append(frame);
+      window.messages = [];
+      addEventListener('message', (event) => { if (event.source === frame.contentWindow) window.messages.push(event.data); });
+      window.send = (recipe, base) => frame.contentWindow.postMessage({ type: 'deskworlds:recipe', recipe, base }, '*');
+    </script>
+  </body>
+</html>

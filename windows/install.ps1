@@ -76,6 +76,18 @@ try {
 }
 
 Set-ItemProperty $run -Name Livingpanes -Value ('"' + $exe + '"')
+
+# Start menu: the app itself, and a shortcut straight into the Studio.
+$menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Livingpanes'
+New-Item -ItemType Directory -Force $menu | Out-Null
+$shell = New-Object -ComObject WScript.Shell
+foreach ($entry in @(@('Livingpanes', ''), @('Livingpanes Studio', '--studio'))) {
+  $link = $shell.CreateShortcut((Join-Path $menu ($entry[0] + '.lnk')))
+  $link.TargetPath = $exe
+  $link.Arguments = $entry[1]
+  $link.WorkingDirectory = $app
+  $link.Save()
+}
 Start-Process $exe
 Write-Host ''
 Write-Host "Livingpanes installed: $app"
