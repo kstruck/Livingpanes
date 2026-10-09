@@ -269,7 +269,12 @@ export function createMockHost({ notify = () => {}, delay = 1000 } = {}) {
       return null;
     },
     async getSettings() {
-      return { hasApiKey: settings.hasApiKey, model: settings.model, models: settings.models.slice() };
+      return { hasApiKey: settings.hasApiKey, model: settings.model, models: settings.models.slice(), workspaceId: settings.workspaceId || '' };
+    },
+    async setWorkspace({ id }) {
+      need(typeof id === 'string' && /^[A-Za-z0-9_-]{0,100}$/.test(id.trim()), 'That does not look like a workspace ID.');
+      settings.workspaceId = id.trim();
+      return true;
     },
     async setApiKey({ key }) {
       need(typeof key === 'string', 'The key must be text.');

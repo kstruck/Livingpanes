@@ -81,8 +81,17 @@ static class Claude {
     every frame in onFrame with renderer.render(scene, camera). Keep it under 400 lines.
     """;
 
+  /// Keys made outside a workspace must name one on every request.
+  public static string? CleanWorkspace(string? id) {
+    id = id?.Trim();
+    if (string.IsNullOrEmpty(id)) return null;
+    if (id.Length > 100 || !id.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
+      throw new ArgumentException("That does not look like a workspace ID. It starts with wrkspc_.");
+    return id;
+  }
+
   public static async Task<Generated> GenerateAsync(string prompt, string model, bool allowCode,
-      string? imageFile, CancellationToken cancel) {
+      string? imageFile, string? workspaceId, CancellationToken cancel) {
     prompt = prompt.Trim();
     if (prompt.Length == 0 && imageFile is null) throw new ArgumentException("Describe the scene you want.");
     if (prompt.Length > 2000) throw new ArgumentException("Keep the description under 2000 characters.");
@@ -110,7 +119,10 @@ static class Claude {
     });
 
     var system = Guide + (imageFile is null ? "" : "\n" + ImageGuide) + (allowCode ? "\n" + CodeGuide : "");
-    var client = new AnthropicClient { ApiKey = ReadKey() };
+    var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+    if (CleanWorkspace(workspaceId) is { } workspace)
+      http.DefaultRequestHeaders.Add("anthropic-workspace-id", workspace);
+    var client = new AnthropicClient { ApiKey = ReadKey(), HttpClient = http };
     var parameters = new MessageCreateParams {
       Model = model,
       MaxTokens = allowCode ? 32000 : 8000,

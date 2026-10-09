@@ -291,6 +291,14 @@ sealed class Controller : ApplicationContext {
     else if (world.Studio) Build();
   }
 
+  public string? Workspace {
+    get => settings.WorkspaceId;
+    set {
+      settings.WorkspaceId = Claude.CleanWorkspace(value);
+      settings.Save();
+    }
+  }
+
   public string Model {
     get => Claude.Models.Contains(settings.Model) ? settings.Model : Claude.DefaultModel;
     set {

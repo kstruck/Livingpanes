@@ -146,6 +146,8 @@ async function openSettings() {
     : [h('option', { value: '', text: 'No models available' })]));
   select.disabled = !options.length;
   $('#model-state').textContent = '';
+  $('#workspace-input').value = s.workspaceId || '';
+  $('#workspace-state').textContent = '';
 }
 
 // ---------- Library ----------
@@ -782,6 +784,14 @@ function init() {
   $('#save').addEventListener('click', () => save());
   $('#save-use').addEventListener('click', () => save({ use: true }));
   $('#preview').addEventListener('load', onPreviewLoad);
+  $('#workspace-save').addEventListener('click', async () => {
+    const id = $('#workspace-input').value.trim();
+    try {
+      await host.call('setWorkspace', { id });
+      $('#workspace-state').textContent = id ? 'Workspace saved.' : 'Workspace cleared.';
+      if (state.settings) state.settings.workspaceId = id;
+    } catch (err) { fail(err); }
+  });
   $('#model-select').addEventListener('change', async (e) => {
     try {
       await host.call('setModel', { model: e.target.value });

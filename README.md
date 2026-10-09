@@ -152,6 +152,9 @@ Open it from the tray (**Studio…**) or the Start menu (**Livingpanes Studio**)
 1. Get an API key at **console.anthropic.com → API keys**. In the Studio, open
    **Settings**, paste it, and click **Save**. The key is encrypted for your Windows user
    and never leaves the app except to go to Anthropic.
+   - If your key is not tied to a workspace, Anthropic asks which workspace to bill. Copy
+     the workspace ID (it starts with `wrkspc_`) from **console.anthropic.com → Settings →
+     Workspaces**, paste it into **Workspace ID** in Studio Settings, and click **Save**.
 2. Click **Describe a scene**, type what you want, and click **Create**. A scene costs a
    few cents on your Anthropic account.
 3. Adjust anything you like, then **Save**.
@@ -177,6 +180,7 @@ Imported code never runs until you have read it.
 | The world is frozen and the menu says "Paused, for Animation effects off" | Windows **Settings → Accessibility → Visual effects → Animation effects** is off, so Livingpanes starts paused on purpose. Click **Resume** to run it anyway. |
 | "Resting behind your windows" | Working as intended: windows cover the screen. Press **Win+D** to look. |
 | Ctrl+Alt+F or Ctrl+Alt+T does nothing | Another app owns that shortcut. The log says so. Use the tray menu instead. |
+| "This API key is not tied to a workspace" when you click **Create** | Paste your workspace ID into Studio **Settings → Workspace ID**, or make a new key inside a workspace. |
 | Nothing shows at all | Check the log at `%LOCALAPPDATA%\Livingpanes\livingpanes.log`, then [open an issue](https://github.com/kstruck/Livingpanes/issues/new/choose) with its last lines. |
 | "needs the Microsoft Edge WebView2 Runtime" | Install it from [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/) (Windows 10 only; Windows 11 has it). |
 

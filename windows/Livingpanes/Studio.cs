@@ -86,6 +86,8 @@ sealed class StudioForm : Form {
   }
 
   static string Friendly(Exception error) => error switch {
+    Anthropic.Exceptions.AnthropicApiException api when api.Message.Contains("anthropic-workspace-id") =>
+      "This API key is not tied to a workspace. In Settings, paste your workspace ID (console.anthropic.com, Settings, Workspaces), or make a new key inside a workspace.",
     Anthropic.Exceptions.AnthropicApiException api when api.Message.Contains("401") || api.Message.Contains("authentication") =>
       "Anthropic did not accept the API key. Check it in Settings.",
     Anthropic.Exceptions.AnthropicRateLimitException => "Anthropic is rate limiting this key. Wait a minute and try again.",
@@ -161,7 +163,7 @@ sealed class StudioForm : Form {
         var allowCode = request["allowCode"]?.GetValue<bool>() == true;
         var image = DraftImage(draft);
         Progress(id, "Asking Claude for a scene", 0.1);
-        var made = await Claude.GenerateAsync(prompt, controller.Model, allowCode, image, closing.Token);
+        var made = await Claude.GenerateAsync(prompt, controller.Model, allowCode, image, controller.Workspace, closing.Token);
         var recipe = JsonNode.Parse(made.Recipe)!.AsObject();
         if (image is not null) {
           var backdrop = recipe["backdrop"] as JsonObject ?? [];
@@ -240,10 +242,15 @@ sealed class StudioForm : Form {
         return new JsonObject {
           ["hasApiKey"] = Claude.HasKey, ["model"] = controller.Model,
           ["models"] = new JsonArray(Claude.Models.Select(m => (JsonNode)m).ToArray()),
+          ["workspaceId"] = controller.Workspace ?? "",
         };
 
       case "setApiKey":
         Claude.SetKey(request["key"]?.GetValue<string>());
+        return true;
+
+      case "setWorkspace":
+        controller.Workspace = request["id"]?.GetValue<string>();
         return true;
 
       case "setModel":

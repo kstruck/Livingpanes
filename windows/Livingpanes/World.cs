@@ -60,6 +60,7 @@ sealed class Settings {
   public bool FollowClock { get; set; } = true;
   public bool Hotkeys { get; set; } = true;
   public string Model { get; set; } = Claude.DefaultModel;
+  public string? WorkspaceId { get; set; }
   public List<Pet> Pets { get; set; } = [];
 
   static string FilePath => Path.Combine(Log.Folder, "settings.json");
