@@ -4,3 +4,5 @@ node_modules/
 /aquarium-shader-improved.zip
 /review/
 iterations/
+windows/**/bin/
+windows/**/obj/
