@@ -135,11 +135,13 @@ sealed class StudioForm : Form {
         if (info.Length > Store.MaxImageBytes) throw new InvalidDataException("That image is larger than 200 MB.");
         var (width, height) = Store.CheckImage(info.FullName);
         var folder = Store.DraftFolder(draft);
-        foreach (var old in Directory.GetFiles(folder, "image.*").Concat(Directory.GetFiles(folder, "depth.png")))
+        foreach (var old in Directory.GetFiles(folder, "image.*").Concat(Directory.GetFiles(folder, "depth.png"))) {
+          File.SetAttributes(old, FileAttributes.Normal);
           File.Delete(old);
+        }
         var name = "image" + info.Extension.ToLowerInvariant();
         // The original file, byte for byte: the engine shows it at full quality.
-        File.Copy(info.FullName, Path.Combine(folder, name));
+        Store.CopyPlain(info.FullName, Path.Combine(folder, name));
         return new JsonObject {
           ["url"] = DraftBase(draft) + name, ["file"] = name, ["width"] = width, ["height"] = height,
           ["name"] = Path.GetFileNameWithoutExtension(info.Name),

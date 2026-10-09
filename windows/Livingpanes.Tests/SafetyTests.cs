@@ -147,6 +147,23 @@ public sealed class StoreTests {
   }
 
   [Fact]
+  public void ReadOnlyPhotosDoNotMakeFoldersUndeletable() {
+    var root = Directory.CreateTempSubdirectory("livingpanes-readonly-").FullName;
+    var source = Path.Combine(root, "photo.jpg");
+    File.WriteAllText(source, "x");
+    File.SetAttributes(source, FileAttributes.ReadOnly);
+    var folder = Path.Combine(root, "scene");
+    Directory.CreateDirectory(folder);
+    Store.CopyPlain(source, Path.Combine(folder, "image.jpg"));
+    Assert.False(File.GetAttributes(Path.Combine(folder, "image.jpg")).HasFlag(FileAttributes.ReadOnly));
+    File.SetAttributes(Path.Combine(folder, "image.jpg"), FileAttributes.ReadOnly);
+    Store.DeleteTree(folder);
+    Assert.False(Directory.Exists(folder));
+    File.SetAttributes(source, FileAttributes.Normal);
+    Directory.Delete(root, true);
+  }
+
+  [Fact]
   public void ImportRefusesAZipWithoutARecipe() {
     var file = Zip(("image.jpg", "x"));
     try {

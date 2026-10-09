@@ -17,15 +17,22 @@ static class SelfTest {
       addEventListener('securitypolicyviolation', (e) => violations.push(e.violatedDirective));
       const settle = (ms) => new Promise((r) => setTimeout(r, ms));
 
-      try { await fetch('https://example.com/'); results.fetchOut = 'REACHED'; } catch { results.fetchOut = 'blocked'; }
+      // A request that merely failed (an offline CI runner) proves nothing, so each of
+      // these passes only when the policy itself refused it.
+      const refused = (directive) => violations.some((v) => v.startsWith(directive));
+      try { await fetch('https://example.com/'); results.fetchOut = 'REACHED'; }
+      catch { await settle(100); results.fetchOut = refused('connect-src') ? 'blocked' : 'FAILED BUT NOT BY POLICY'; }
       results.webrtc = typeof RTCPeerConnection === 'undefined' && typeof webkitRTCPeerConnection === 'undefined' ? 'blocked' : 'AVAILABLE';
       const frame = document.createElement('iframe');
       document.body.append(frame);
+      // Reached through window.frames first, the path a property hook cannot see.
+      results.webrtcInFrameByIndex = typeof window.frames[window.frames.length - 1].RTCPeerConnection === 'undefined' ? 'blocked' : 'AVAILABLE';
       results.webrtcInFrame = typeof frame.contentWindow.RTCPeerConnection === 'undefined' ? 'blocked' : 'AVAILABLE';
       const image = new Image();
-      const loaded = new Promise((r) => { image.onload = () => r('REACHED'); image.onerror = () => r('blocked'); });
+      const loaded = new Promise((r) => { image.onload = () => r('REACHED'); image.onerror = () => r('error'); });
       image.src = 'https://example.com/favicon.ico';
-      results.imageOut = await Promise.race([loaded, settle(4000).then(() => 'blocked')]);
+      const imageResult = await Promise.race([loaded, settle(4000).then(() => 'timeout')]);
+      results.imageOut = imageResult === 'REACHED' ? 'REACHED' : refused('img-src') ? 'blocked' : 'FAILED BUT NOT BY POLICY';
       try { new WebSocket('wss://example.com/'); await settle(500); results.socketOut = violations.includes('connect-src') ? 'blocked' : 'UNKNOWN'; }
       catch { results.socketOut = 'blocked'; }
       const page = await fetch(location.href);

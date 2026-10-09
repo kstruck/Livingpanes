@@ -21,8 +21,24 @@ static partial class Store {
 
   /// The only files a scene folder may hold. Anything else in an import is refused.
   static readonly Regex allowedFile = AllowedFile();
-  [GeneratedRegex(@"^(recipe\.json|scene\.js|depth\.png|image\.(jpg|jpeg|png|webp|avif|bmp))$", RegexOptions.IgnoreCase)]
+  // Only formats Windows can read the size of before decoding (see CheckImage).
+  [GeneratedRegex(@"^(recipe\.json|scene\.js|depth\.png|image\.(jpg|jpeg|png|bmp))$", RegexOptions.IgnoreCase)]
   private static partial Regex AllowedFile();
+
+  /// Copies without carrying a read-only flag over: a photo from a camera roll or a share
+  /// is often read-only, and would otherwise make the scene folder undeletable.
+  public static void CopyPlain(string source, string target) {
+    File.Copy(source, target, true);
+    File.SetAttributes(target, FileAttributes.Normal);
+  }
+
+  /// Deletes a folder even if something in it is read-only.
+  public static void DeleteTree(string folder) {
+    if (!Directory.Exists(folder)) return;
+    foreach (var file in Directory.GetFiles(folder, "*", SearchOption.AllDirectories))
+      File.SetAttributes(file, FileAttributes.Normal);
+    Directory.Delete(folder, true);
+  }
 
   [GeneratedRegex(@"^[a-z0-9-]{1,64}$")]
   private static partial Regex IdPattern();
@@ -52,7 +68,7 @@ static partial class Store {
       if (!Directory.Exists(DraftsRoot)) return;
       foreach (var folder in Directory.GetDirectories(DraftsRoot))
         if (Directory.GetLastWriteTimeUtc(folder) < DateTime.UtcNow.AddDays(-7))
-          Directory.Delete(folder, true);
+          DeleteTree(folder);
     } catch (Exception error) {
       Log.Write($"draft sweep: {error.Message}");
     }
@@ -99,15 +115,15 @@ static partial class Store {
     if (!IsId(id)) id = NewId(null);
     var target = SceneFolder(id);
     var staging = target + ".saving";
-    if (Directory.Exists(staging)) Directory.Delete(staging, true);
+    if (Directory.Exists(staging)) DeleteTree(staging);
     Directory.CreateDirectory(staging);
     foreach (var file in Directory.GetFiles(source))
       if (allowedFile.IsMatch(Path.GetFileName(file)))
-        File.Copy(file, Path.Combine(staging, Path.GetFileName(file)));
+        CopyPlain(file, Path.Combine(staging, Path.GetFileName(file)));
     // Swap by renaming, so a locked file or a crash never leaves a half-deleted scene:
     // the old copy is only deleted once the new one is in place.
     var old = target + ".old";
-    if (Directory.Exists(old)) Directory.Delete(old, true);
+    if (Directory.Exists(old)) DeleteTree(old);
     if (Directory.Exists(target)) Directory.Move(target, old);
     try {
       Directory.Move(staging, target);
@@ -116,8 +132,8 @@ static partial class Store {
       throw;
     }
     try {
-      if (Directory.Exists(old)) Directory.Delete(old, true);
-    } catch (IOException error) {
+      if (Directory.Exists(old)) DeleteTree(old);
+    } catch (Exception error) {
       Log.Write($"old copy of {id} left behind: {error.Message}");
     }
     File.WriteAllText(marker, id);
@@ -149,14 +165,14 @@ static partial class Store {
     if (!Directory.Exists(source)) throw new DirectoryNotFoundException("That scene no longer exists.");
     var draft = NewDraft();
     foreach (var file in Directory.GetFiles(source))
-      File.Copy(file, Path.Combine(DraftFolder(draft), Path.GetFileName(file)));
+      CopyPlain(file, Path.Combine(DraftFolder(draft), Path.GetFileName(file)));
     File.WriteAllText(Path.Combine(DraftFolder(draft), ".scene"), id);
     return draft;
   }
 
   public static void DeleteScene(string id) {
     var folder = SceneFolder(id);
-    if (Directory.Exists(folder)) Directory.Delete(folder, true);
+    if (Directory.Exists(folder)) DeleteTree(folder);
   }
 
   /// A draft copy of a shipped example, saved later as the user's own scene.
@@ -167,7 +183,7 @@ static partial class Store {
     var draft = NewDraft();
     foreach (var file in Directory.GetFiles(source))
       if (allowedFile.IsMatch(Path.GetFileName(file)))
-        File.Copy(file, Path.Combine(DraftFolder(draft), Path.GetFileName(file)));
+        CopyPlain(file, Path.Combine(DraftFolder(draft), Path.GetFileName(file)));
     return draft;
   }
 
@@ -275,7 +291,7 @@ static partial class Store {
       Directory.Move(staging, SceneFolder(id));
       return id;
     } catch {
-      Directory.Delete(staging, true);
+      DeleteTree(staging);
       throw;
     }
   }

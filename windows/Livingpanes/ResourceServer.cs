@@ -147,20 +147,30 @@ static class ResourceServer {
     // Nothing leaves deskworlds.local: no links, no redirects, no pop-ups.
     core.NavigationStarting += (_, e) => {
       if (!e.Uri.StartsWith(Origin + "/", StringComparison.OrdinalIgnoreCase)) {
-        Log.Write($"blocked navigation to {Truncate(e.Uri)}");
+        Quiet($"blocked navigation to {Truncate(e.Uri)}");
         e.Cancel = true;
       }
     };
     core.FrameNavigationStarting += (_, e) => {
       if (!e.Uri.StartsWith(Origin + "/", StringComparison.OrdinalIgnoreCase) && e.Uri != "about:blank"
           && e.Uri != "about:srcdoc") {
-        Log.Write($"blocked frame navigation to {Truncate(e.Uri)}");
+        Quiet($"blocked frame navigation to {Truncate(e.Uri)}");
         e.Cancel = true;
       }
     };
     core.NewWindowRequested += (_, e) => e.Handled = true;
     core.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
     core.DownloadStarting += (_, e) => e.Cancel = true;
+  }
+
+  static DateTime quietWindow = DateTime.MinValue;
+  static int quietCount;
+
+  /// A page stuck in a redirect loop is logged a few times a minute, not thousands.
+  static void Quiet(string text) {
+    var now = DateTime.UtcNow;
+    if (now - quietWindow > TimeSpan.FromMinutes(1)) { quietWindow = now; quietCount = 0; }
+    if (++quietCount <= 10) Log.Write(text);
   }
 
   public static string Truncate(string? text, int length = 300) =>
